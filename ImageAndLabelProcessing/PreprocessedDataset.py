@@ -39,7 +39,8 @@ def shear(image, x_shear, y_shear):
     max_x_shear = round(abs(image.shape[0] * x_shear))
     new_height = image.shape[0] + max_y_shear
     new_width = image.shape[1] + max_x_shear
-    temp = np.zeros(shape=(new_height, new_width))
+    img_sheared = np.zeros(shape=(new_height, new_width))
+    shifts = np.zeros(shape=(image.shape[0], 2))
     for i in range(image.shape[0]):
         if x_shear < 0:
             shift_x = round(i * x_shear + max_x_shear)
@@ -54,19 +55,20 @@ def shear(image, x_shear, y_shear):
                 shift_y = round(j * y_shear)
             else:
                 shift_y = 0
-            temp[i + shift_y][j + shift_x] = image[i][j]
-    return temp
+            img_sheared[i + shift_y][j + shift_x] = image[i][j]
+            shifts = [shift_y, shift_x]
+    return img_sheared, shifts
 
 
 def rotate(image, angle):
     angle = math.radians(angle)
     shear_x = -math.tan(angle/2)
     shear_y = math.sin(angle)
-    image = shear(image, shear_x, 0)
-    image = shear(image, 0, shear_y)
-    image = shear(image, shear_x, 0)
+    image, shifts_x1 = shear(image, shear_x, 0)
+    image, shifts_y1 = shear(image, 0, shear_y)
+    image, shifts_x2 = shear(image, shear_x, 0)
     image = remove_black_borders(image)
-    return image
+    return image, shifts_x1, shifts_y1, shifts_x2
 
 
 def remove_black_borders(image):
@@ -96,13 +98,15 @@ def binarization(image, threshold):
                 image[i][j] = 0
     return image
 
+def rotate_bounding_boxes():
+
 
 def projection_profile_skew(image, max_skew):
     max_variation = 0
     rotation = 0
     skew_range = np.linspace(-max_skew, max_skew, 21)
     for skew in skew_range:
-        temp_image = rotate(image, skew)
+        temp_image, _, _, _ = rotate(image, skew)
         sum_in_row = np.zeros(temp_image.shape[0], dtype=int)
         for i in range(temp_image.shape[0]):
             sum_in_row[i] = temp_image[i].sum()

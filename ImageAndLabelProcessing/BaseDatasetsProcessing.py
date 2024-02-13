@@ -4,8 +4,8 @@ import sys
 import numpy as np
 from PIL import Image, ImageOps
 
-# unpack files from https://goodnotes.com/gnhk/ in sage format to main folder
-# then run this script to split dataset and clean labels
+# unpack files from https://goodnotes.com/gnhk/ in sage format to main folder then run this script
+# to split dataset, clean labels and create base word images from bounding boxes.
 
 np.random.seed(65)
 
