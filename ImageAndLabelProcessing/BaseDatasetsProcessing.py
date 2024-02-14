@@ -136,11 +136,10 @@ def save_labels_to_txt(image_path, labels, base_folder, split_folder, copy_image
 def save_word_image_label(image_path, labels, base_folder, split_folder):
     if not os.path.getsize(image_path):
         sys.exit('Image: ' + image_path + ' does not exist.')
-    assert len(yolo_labels) == len(words)
     img_names = []
     image = Image.open(image_path)
     image = ImageOps.exif_transpose(image)
-    for index in range(len(words)):
+    for index in range(len(labels)):
         left = labels[index][1]
         upper = labels[index][2]
         right = labels[index][3]
