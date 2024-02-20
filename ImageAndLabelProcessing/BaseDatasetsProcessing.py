@@ -88,7 +88,7 @@ def create_splits_target_folders(base_folder):
         os.makedirs(target_image_path)
 
 
-def save_labels_to_txt(image_path, labels, base_folder, split_folder, copy_image_to_split=True):
+def save_labels_to_txt(image_path, labels, base_folder, split_folder, copy_image_to_split=False):
     if not os.path.getsize(image_path):
         sys.exit('Image: ' + image_path + ' does not exist.')
     target_label_path = os.path.join(base_folder, 'labels', split_folder)
@@ -128,7 +128,7 @@ def save_word_image_label(image_path, labels, base_folder, split_folder):
             file.write(img_names[index] + ' ' + labels[index][0] + '\n')
 
 
-if __name__ == '__BaseDatasetsProcessing__':
+if __name__ == '__main__':
     np.random.seed(65)
 
     source_image_paths = ["../train/", "../test/"]
@@ -167,20 +167,20 @@ if __name__ == '__BaseDatasetsProcessing__':
 
     for i, line in enumerate(train_samples):
         image_path, yolo_labels, labels_org_sort, words = get_path_and_labels(line, source_image_path)
-        save_labels_to_txt(image_path, yolo_labels, target_image_path, 'train')
-        save_labels_to_txt(image_path, labels_org_sort, target_image_path, 'all_org', copy_image_to_split=False)
+        save_labels_to_txt(image_path, yolo_labels, target_image_path, 'train', copy_image_to_split=True)
+        save_labels_to_txt(image_path, labels_org_sort, target_image_path, 'all_org')
         save_word_image_label(image_path, words, target_word_image_path, 'train')
 
     for i, line in enumerate(test_samples):
         image_path, yolo_labels, labels_org_sort, words = get_path_and_labels(line, source_image_path)
-        save_labels_to_txt(image_path, yolo_labels, target_image_path, 'test')
-        save_labels_to_txt(image_path, labels_org_sort, target_image_path, 'all_org', copy_image_to_split=False)
+        save_labels_to_txt(image_path, yolo_labels, target_image_path, 'test', copy_image_to_split=True)
+        save_labels_to_txt(image_path, labels_org_sort, target_image_path, 'all_org')
         save_word_image_label(image_path, words, target_word_image_path, 'test')
 
     for i, line in enumerate(validation_samples):
         image_path, yolo_labels, labels_org_sort, words = get_path_and_labels(line, source_image_path)
-        save_labels_to_txt(image_path, yolo_labels, target_image_path, 'val')
-        save_labels_to_txt(image_path, labels_org_sort, target_image_path, 'all_org', copy_image_to_split=False)
+        save_labels_to_txt(image_path, yolo_labels, target_image_path, 'val', copy_image_to_split=True)
+        save_labels_to_txt(image_path, labels_org_sort, target_image_path, 'all_org')
         save_word_image_label(image_path, words, target_word_image_path, 'val')
 
     shutil.rmtree(source_image_path)
