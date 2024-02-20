@@ -7,42 +7,11 @@ from PIL import Image, ImageOps
 # unpack files from https://goodnotes.com/gnhk/ in sage format to main folder then run this script
 # to split dataset, clean labels and create base word images from bounding boxes.
 
-np.random.seed(65)
-
-source_image_paths = ["../train/", "../test/"]
-target_image_path = "../Data/Pages/Base"
-target_word_image_path = "../Data/Words/Base"
-
-if not (os.path.exists(source_image_paths[0]) and os.path.exists(source_image_paths[1]) and os.path.isdir(source_image_paths[0]) and os.path.isdir(source_image_paths[1])):
-    sys.exit("Main folder does not contain data folders: " + source_image_paths[0] + ' ' + source_image_paths[1])
-
-os.makedirs(target_image_path, exist_ok=True)
-os.makedirs(target_word_image_path, exist_ok=True)
-
 
 def move_tree(source_dir, target_dir):
     file_names = os.listdir(source_dir)
     for file in file_names:
         shutil.move(os.path.join(source_dir, file), target_dir)
-
-
-move_tree(source_image_paths[1], source_image_paths[0])
-source_image_path = source_image_paths[0]
-shutil.rmtree(source_image_paths[1])
-
-source_manifest_paths = ["../train/train.manifest", "../train/test.manifest"]
-train_samples = open(f"{source_manifest_paths[0]}", "r").readlines()
-file_list = open(f"{source_manifest_paths[1]}", "r").readlines()
-np.random.shuffle(file_list)
-split_idx = int(0.5 * len(file_list))
-validation_samples = file_list[0:split_idx]
-test_samples = file_list[split_idx:]
-
-assert len(file_list) == len(validation_samples) + len(test_samples)
-
-print(f"Total training samples: {len(train_samples)}")
-print(f"Total validation samples: {len(validation_samples)}")
-print(f"Total test samples: {len(test_samples)}")
 
 
 def get_path_and_labels(sample_line, source_image_path): # process single image
@@ -159,28 +128,59 @@ def save_word_image_label(image_path, labels, base_folder, split_folder):
             file.write(img_names[index] + ' ' + labels[index][0] + '\n')
 
 
-drop_splits_target_folders(target_image_path)
-drop_splits_target_folders(target_word_image_path)
-create_splits_target_folders(target_image_path)
-create_splits_target_folders(target_word_image_path)
-os.makedirs(os.path.join(target_image_path, 'labels/all_org'))
+if __name__ == '__BaseDatasetsProcessing__':
+    np.random.seed(65)
 
-for i, line in enumerate(train_samples):
-    image_path, yolo_labels, labels_org_sort, words = get_path_and_labels(line, source_image_path)
-    save_labels_to_txt(image_path, yolo_labels, target_image_path, 'train')
-    save_labels_to_txt(image_path, labels_org_sort, target_image_path, 'all_org', copy_image_to_split=False)
-    save_word_image_label(image_path, words, target_word_image_path, 'train')
+    source_image_paths = ["../train/", "../test/"]
+    target_image_path = "../Data/Pages/Base"
+    target_word_image_path = "../Data/Words/Base"
 
-for i, line in enumerate(test_samples):
-    image_path, yolo_labels, labels_org_sort, words = get_path_and_labels(line, source_image_path)
-    save_labels_to_txt(image_path, yolo_labels, target_image_path, 'test')
-    save_labels_to_txt(image_path, labels_org_sort, target_image_path, 'all_org', copy_image_to_split=False)
-    save_word_image_label(image_path, words, target_word_image_path, 'test')
+    if not (os.path.exists(source_image_paths[0]) and os.path.exists(source_image_paths[1]) and os.path.isdir(source_image_paths[0]) and os.path.isdir(source_image_paths[1])):
+        sys.exit("Main folder does not contain data folders: " + source_image_paths[0] + ' ' + source_image_paths[1])
 
-for i, line in enumerate(validation_samples):
-    image_path, yolo_labels, labels_org_sort, words = get_path_and_labels(line, source_image_path)
-    save_labels_to_txt(image_path, yolo_labels, target_image_path, 'val')
-    save_labels_to_txt(image_path, labels_org_sort, target_image_path, 'all_org', copy_image_to_split=False)
-    save_word_image_label(image_path, words, target_word_image_path, 'val')
+    os.makedirs(target_image_path, exist_ok=True)
+    os.makedirs(target_word_image_path, exist_ok=True)
 
-shutil.rmtree(source_image_path)
+    move_tree(source_image_paths[1], source_image_paths[0])
+    source_image_path = source_image_paths[0]
+    shutil.rmtree(source_image_paths[1])
+
+    source_manifest_paths = ["../train/train.manifest", "../train/test.manifest"]
+    train_samples = open(f"{source_manifest_paths[0]}", "r").readlines()
+    file_list = open(f"{source_manifest_paths[1]}", "r").readlines()
+    np.random.shuffle(file_list)
+    split_idx = int(0.5 * len(file_list))
+    validation_samples = file_list[0:split_idx]
+    test_samples = file_list[split_idx:]
+
+    assert len(file_list) == len(validation_samples) + len(test_samples)
+
+    print(f"Total training samples: {len(train_samples)}")
+    print(f"Total validation samples: {len(validation_samples)}")
+    print(f"Total test samples: {len(test_samples)}")
+
+    drop_splits_target_folders(target_image_path)
+    drop_splits_target_folders(target_word_image_path)
+    create_splits_target_folders(target_image_path)
+    create_splits_target_folders(target_word_image_path)
+    os.makedirs(os.path.join(target_image_path, 'labels/all_org'))
+
+    for i, line in enumerate(train_samples):
+        image_path, yolo_labels, labels_org_sort, words = get_path_and_labels(line, source_image_path)
+        save_labels_to_txt(image_path, yolo_labels, target_image_path, 'train')
+        save_labels_to_txt(image_path, labels_org_sort, target_image_path, 'all_org', copy_image_to_split=False)
+        save_word_image_label(image_path, words, target_word_image_path, 'train')
+
+    for i, line in enumerate(test_samples):
+        image_path, yolo_labels, labels_org_sort, words = get_path_and_labels(line, source_image_path)
+        save_labels_to_txt(image_path, yolo_labels, target_image_path, 'test')
+        save_labels_to_txt(image_path, labels_org_sort, target_image_path, 'all_org', copy_image_to_split=False)
+        save_word_image_label(image_path, words, target_word_image_path, 'test')
+
+    for i, line in enumerate(validation_samples):
+        image_path, yolo_labels, labels_org_sort, words = get_path_and_labels(line, source_image_path)
+        save_labels_to_txt(image_path, yolo_labels, target_image_path, 'val')
+        save_labels_to_txt(image_path, labels_org_sort, target_image_path, 'all_org', copy_image_to_split=False)
+        save_word_image_label(image_path, words, target_word_image_path, 'val')
+
+    shutil.rmtree(source_image_path)
