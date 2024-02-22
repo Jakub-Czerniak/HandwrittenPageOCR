@@ -1,4 +1,5 @@
 import shutil
+import sys
 import numpy as np
 import math
 import cv2 as cv
@@ -42,7 +43,12 @@ def shear(image, x_shear, y_shear):
     max_x_shear = round(abs(image.shape[0] * x_shear))
     new_height = image.shape[0] + max_y_shear
     new_width = image.shape[1] + max_x_shear
-    img_sheared = np.zeros(shape=(new_height, new_width))
+    if image.ndim == 2:
+        img_sheared = np.zeros(shape=(new_height, new_width))
+    elif image.ndim == 3:
+        img_sheared = np.zeros(shape=(new_height, new_width, image.shape[2]))
+    else:
+        sys.exit('Image in shear has 1 or more than 3 dimensions.')
     shifts_x = np.zeros(shape=(image.shape[0]), dtype=int)
     shifts_y = np.zeros(shape=(image.shape[1]), dtype=int)
     for i in range(image.shape[0]):
@@ -150,6 +156,14 @@ def make_labels_and_bounding_boxes(polygons, img_width, img_height):
         bounding_down = max(polygon[2][1], polygon[3][1])
         bounding_left = min(polygon[0][0], polygon[2][0])
         bounding_right = max(polygon[1][0], polygon[3][0])
+        if bounding_left > bounding_right:
+            temp = bounding_right
+            bounding_right = bounding_left
+            bounding_left = temp
+        if bounding_upper > bounding_down:
+            temp = bounding_upper
+            bounding_upper = bounding_down
+            bounding_down = temp
         bb_width = (bounding_right - bounding_left) / img_width
         bb_height = (bounding_down - bounding_upper) / img_height
         x_center = (bounding_right - ((bounding_right - bounding_left) / 2)) / img_width
@@ -214,14 +228,8 @@ def preprocessing(image_path):
 def preprocessing_folder(folder_path):
     img_count = len([name for name in os.listdir(folder_path)])
     img_counter = 0
-    gogo = True
     for image_path in os.listdir(folder_path):
         img_counter += 1
-        if image_path == 'eng_EU_070.jpg':
-            gogo = False
-        if gogo:
-            continue
-
         path = os.path.join(folder_path, image_path)
         print(str(img_counter) + '/' + str(img_count) + ' in ' + folder_path)
         print('Preprocessing image: ' + path)
@@ -251,12 +259,11 @@ def preprocessing_sample(image_path):
 
 
 if __name__ == '__main__':
-    '''drop_splits_target_folders('../Data/Pages/Preprocessed/')
+    drop_splits_target_folders('../Data/Pages/Preprocessed/')
     drop_splits_target_folders('../Data/Words/Preprocessed/')
     create_splits_target_folders('../Data/Pages/Preprocessed/')
     create_splits_target_folders('../Data/Words/Preprocessed/')
     copy_base_word_labels('../Data/Words/Preprocessed/')
-
-    preprocessing_folder('../Data/Pages/Base/images/test')'''
+    preprocessing_folder('../Data/Pages/Base/images/val')
     preprocessing_folder('../Data/Pages/Base/images/train')
-
+    preprocessing_folder('../Data/Pages/Base/images/test')
