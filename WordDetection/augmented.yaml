@@ -1,0 +1,5 @@
+train: ../Data/Pages/Augmented/train
+val: ../Data/Pages/Augmented/val
+test: ../Data/Pages/Augmented/test
+nc: 1
+names: ['word']

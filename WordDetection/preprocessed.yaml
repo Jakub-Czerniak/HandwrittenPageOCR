@@ -1,0 +1,5 @@
+train: ../Data/Pages/Preprocessed/train
+val: ../Data/Pages/Preprocessed/val
+test: ../Data/Pages/Preprocessed/test
+nc: 1
+names: ['word']

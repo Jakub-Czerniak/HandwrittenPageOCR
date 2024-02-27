@@ -1,0 +1,6 @@
+train: ../Data/Pages/Base/train
+val: ../Data/Pages/Base/val
+test: ../Data/Pages/Base/test
+nc: 1
+names:
+  0: word
