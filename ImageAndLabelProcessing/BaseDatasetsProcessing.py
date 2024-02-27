@@ -59,31 +59,25 @@ def get_path_and_labels(sample_line, source_image_path): # process single image
         x_center = (bounding_right - ((bounding_right - bounding_left) / 2)) / width
         y_center = (bounding_down - ((bounding_down - bounding_upper) / 2)) / height
         if not (line[1] == '' or line[1][0] == '%'):
-            labels_yolo.append('word ' + str(x_center) + ' ' + str(y_center) + ' ' + str(bb_width) + ' ' + str(bb_height))
+            labels_yolo.append('0 ' + str(x_center) + ' ' + str(y_center) + ' ' + str(bb_width) + ' ' + str(bb_height))
             words_with_bb.append([line[1], bounding_left, bounding_upper, bounding_right, bounding_down])
             labels_org_sort.append('lu_x ' + str(left_upper_x) + ' lu_y ' + str(left_upper_y) + ' ru_x ' + str(right_upper_x) + ' ru_y ' + str(right_upper_y) + ' ld_x ' + str(left_down_x) + ' ld_y ' + str(left_down_y) + ' rd_x ' + str(right_down_x) + ' rd_y ' + str(right_down_y))
 
     return path, labels_yolo, labels_org_sort, words_with_bb
 
 
-def drop_splits_target_folders(base_folder):
-    path_labels = os.path.join(base_folder, 'labels')
-    path_images = os.path.join(base_folder, 'images')
-    if os.path.exists(path_labels) and os.path.isdir(path_labels):
-        shutil.rmtree(path_labels)
-    if os.path.exists(path_images) and os.path.isdir(path_images):
-        shutil.rmtree(path_images)
+def drop_folder(base_folder):
+    if os.path.exists(base_folder) and os.path.isdir(base_folder):
+        shutil.rmtree(base_folder)
 
 
 def create_splits_target_folders(base_folder):
-    path_labels = os.path.join(base_folder, 'labels')
-    path_images = os.path.join(base_folder, 'images')
-    if os.path.exists(path_labels) or os.path.exists(path_images):
-        sys.exit('Target folder already exists.')
     folders = ['train', 'test', 'val']
     for f_name in folders:
-        target_label_path = os.path.join(path_labels, f_name)
-        target_image_path = os.path.join(path_images, f_name)
+        target_label_path = os.path.join(base_folder, f_name, 'labels')
+        target_image_path = os.path.join(base_folder, f_name, 'images')
+        if os.path.exists(target_label_path) or os.path.exists(target_image_path):
+            sys.exit('Target folder already exists.')
         os.makedirs(target_label_path)
         os.makedirs(target_image_path)
 
@@ -91,9 +85,9 @@ def create_splits_target_folders(base_folder):
 def save_labels_to_txt(image_path, labels, base_folder, split_folder, copy_image_to_split=False):
     if not os.path.getsize(image_path):
         sys.exit('Image: ' + image_path + ' does not exist.')
-    target_label_path = os.path.join(base_folder, 'labels', split_folder)
+    target_label_path = os.path.join(base_folder, split_folder, 'labels')
     if copy_image_to_split:
-        target_image_path = os.path.join(base_folder, 'images', split_folder)
+        target_image_path = os.path.join(base_folder, split_folder, 'images')
         shutil.copy(image_path, target_image_path)
     txt_name = os.path.basename(os.path.normpath(image_path)).replace('jpg', 'txt')
     file_name = os.path.join(target_label_path, txt_name)
@@ -116,12 +110,12 @@ def save_word_image_label(image_path, labels, base_folder, split_folder):
         img_crop = image.crop((left, upper, right, lower))
         img_name = os.path.basename(os.path.normpath(image_path)).replace('.jpg', '_' + str(index) + '.jpg')
         img_names.append(img_name)
-        path_img = os.path.join(base_folder, 'images', split_folder, img_name)
+        path_img = os.path.join(base_folder, split_folder, 'images', img_name)
         if img_crop.mode in ("RGBA", "P"):
             img_crop = img_crop.convert("RGB")
         img_crop.save(path_img)
 
-    file_name = os.path.join(base_folder, 'labels', split_folder, 'labels.txt')
+    file_name = os.path.join(base_folder, split_folder, 'labels', 'labels.txt')
     with open(file_name, 'a') as file:
         assert len(img_names) == len(labels)
         for index in range(len(labels)):
@@ -132,13 +126,13 @@ if __name__ == '__main__':
     np.random.seed(65)
 
     source_image_paths = ["../train/", "../test/"]
-    target_image_path = "../Data/Pages/Base"
+    target_pages_path = "../Data/Pages/Base"
     target_word_image_path = "../Data/Words/Base"
 
     if not (os.path.exists(source_image_paths[0]) and os.path.exists(source_image_paths[1]) and os.path.isdir(source_image_paths[0]) and os.path.isdir(source_image_paths[1])):
         sys.exit("Main folder does not contain data folders: " + source_image_paths[0] + ' ' + source_image_paths[1])
 
-    os.makedirs(target_image_path, exist_ok=True)
+    os.makedirs(target_pages_path, exist_ok=True)
     os.makedirs(target_word_image_path, exist_ok=True)
 
     move_tree(source_image_paths[1], source_image_paths[0])
@@ -159,28 +153,28 @@ if __name__ == '__main__':
     print(f"Total validation samples: {len(validation_samples)}")
     print(f"Total test samples: {len(test_samples)}")
 
-    drop_splits_target_folders(target_image_path)
-    drop_splits_target_folders(target_word_image_path)
-    create_splits_target_folders(target_image_path)
+    drop_folder(target_pages_path)
+    drop_folder(target_word_image_path)
+    create_splits_target_folders(target_pages_path)
     create_splits_target_folders(target_word_image_path)
-    os.makedirs(os.path.join(target_image_path, 'labels/all_org'))
+    os.makedirs(os.path.join(target_pages_path, 'all_org/labels'))
 
     for i, line in enumerate(train_samples):
         image_path, yolo_labels, labels_org_sort, words = get_path_and_labels(line, source_image_path)
-        save_labels_to_txt(image_path, yolo_labels, target_image_path, 'train', copy_image_to_split=True)
-        save_labels_to_txt(image_path, labels_org_sort, target_image_path, 'all_org')
+        save_labels_to_txt(image_path, yolo_labels, target_pages_path, 'train', copy_image_to_split=True)
+        save_labels_to_txt(image_path, labels_org_sort, target_pages_path, 'all_org')
         save_word_image_label(image_path, words, target_word_image_path, 'train')
 
     for i, line in enumerate(test_samples):
         image_path, yolo_labels, labels_org_sort, words = get_path_and_labels(line, source_image_path)
-        save_labels_to_txt(image_path, yolo_labels, target_image_path, 'test', copy_image_to_split=True)
-        save_labels_to_txt(image_path, labels_org_sort, target_image_path, 'all_org')
+        save_labels_to_txt(image_path, yolo_labels, target_pages_path, 'test', copy_image_to_split=True)
+        save_labels_to_txt(image_path, labels_org_sort, target_pages_path, 'all_org')
         save_word_image_label(image_path, words, target_word_image_path, 'test')
 
     for i, line in enumerate(validation_samples):
         image_path, yolo_labels, labels_org_sort, words = get_path_and_labels(line, source_image_path)
-        save_labels_to_txt(image_path, yolo_labels, target_image_path, 'val', copy_image_to_split=True)
-        save_labels_to_txt(image_path, labels_org_sort, target_image_path, 'all_org')
+        save_labels_to_txt(image_path, yolo_labels, target_pages_path, 'val', copy_image_to_split=True)
+        save_labels_to_txt(image_path, labels_org_sort, target_pages_path, 'all_org')
         save_word_image_label(image_path, words, target_word_image_path, 'val')
 
     shutil.rmtree(source_image_path)

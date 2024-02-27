@@ -4,11 +4,14 @@ import numpy as np
 import math
 import cv2 as cv
 import os
-from skimage.morphology import skeletonize
+from skimage.morphology import skeletonize, binary_closing, binary_erosion, thin
+from skimage.exposure import rescale_intensity
+from diplib import EuclideanSkeleton
+import diplib
 from skimage.util import invert
 from multiprocessing import Pool
 from itertools import repeat
-from ImageAndLabelProcessing.BaseDatasetsProcessing import drop_splits_target_folders, create_splits_target_folders, save_labels_to_txt
+from ImageAndLabelProcessing.BaseDatasetsProcessing import drop_folder, create_splits_target_folders, save_labels_to_txt
 
 
 def average_grayscale_conversion(image):
@@ -104,7 +107,7 @@ def calculate_row_variation(skew, image):
 
 def projection_profile_skew(image, max_skew):
     skew_range = np.linspace(-max_skew, max_skew, 21)
-    with Pool(4) as pool:
+    with Pool(6) as pool:
         results = pool.starmap(calculate_row_variation, zip(skew_range, repeat(image)))
     best_result_id = max(range(len(results)), key=results.__getitem__)
     rotation = skew_range[best_result_id]
@@ -138,13 +141,15 @@ def read_base_labels(path):
 
 
 def rotate_polygons(polygons, rot_shifts_x1, rot_shifts_y1, rot_shifts_x2):
+    # works only if shifts are collected from sequence of shears
     for polygon in polygons:
         for i in range(4):
-            polygon[i][0] += rot_shifts_x1[polygon[i][1]]
-        for j in range(4):
-            polygon[j][1] += rot_shifts_y1[polygon[j][0]]
-        for k in range(4):
-            polygon[k][0] += rot_shifts_x2[polygon[k][1]]
+            if rot_shifts_x1 is not None:
+                polygon[i][0] += rot_shifts_x1[polygon[i][1]]
+            if rot_shifts_y1 is not None:
+                polygon[i][1] += rot_shifts_y1[polygon[i][0]]
+            if rot_shifts_x2 is not None:
+                polygon[i][0] += rot_shifts_x2[polygon[i][1]]
     return polygons
 
 
@@ -168,7 +173,7 @@ def make_labels_and_bounding_boxes(polygons, img_width, img_height):
         bb_height = (bounding_down - bounding_upper) / img_height
         x_center = (bounding_right - ((bounding_right - bounding_left) / 2)) / img_width
         y_center = (bounding_down - ((bounding_down - bounding_upper) / 2)) / img_height
-        yolo_labels.append('word ' + str(x_center) + ' ' + str(y_center) + ' ' + str(bb_width) + ' ' + str(bb_height))
+        yolo_labels.append('0 ' + str(x_center) + ' ' + str(y_center) + ' ' + str(bb_width) + ' ' + str(bb_height))
         bounding_boxes.append([bounding_left, bounding_upper, bounding_right, bounding_down])
 
     return yolo_labels, bounding_boxes
@@ -182,20 +187,20 @@ def save_word_images(image, image_path, bounding_boxes, base_folder, split_folde
         lower = bounding_boxes[index][3]
         img_crop = image[upper:lower, left:right]
         img_name = os.path.basename(os.path.normpath(image_path)).replace('.jpg', '_' + str(index) + '.jpg')
-        path_img = os.path.join(base_folder, 'images', split_folder, img_name)
+        path_img = os.path.join(base_folder, split_folder, 'images', img_name)
         cv.imwrite(path_img, img_crop)
 
 
 def save_image(image, base_folder, split_folder, image_name):
-    img_path = os.path.join(base_folder, 'images', split_folder, image_name)
+    img_path = os.path.join(base_folder, split_folder, 'images', image_name)
     cv.imwrite(img_path, image)
 
 
 def copy_base_word_labels(base_folder):
     split_folders = ['train', 'test', 'val']
     for fol_name in split_folders:
-        source_path = os.path.join('../Data/Words/Base/labels', fol_name)
-        target_path = os.path.join(base_folder, 'labels', fol_name)
+        source_path = os.path.join('../Data/Words/Base/', fol_name, 'labels')
+        target_path = os.path.join(base_folder, fol_name, 'labels')
         shutil.copytree(source_path, target_path, dirs_exist_ok=True)
 
 
@@ -203,20 +208,16 @@ def preprocessing(image_path):
     img = cv.imread(image_path)
     img = weighted_grayscale_conversion(img)
     img = adaptive_thresholding(img)
-    img = invert(img)
-    img_skel = skeletonize(img).astype(np.uint8)
+    img_skel = skeletonize(invert(img)).astype(np.uint8)
     img_skel = normalization_grayscale(img_skel)
     rotation = projection_profile_skew(img_skel, 5)
-    img = skeletonize(img).astype(np.uint8)
     img, shifts_x1, shifts_y1, shifts_x2 = rotate(img, rotation)
-    img = invert(img)
-    img = normalization_grayscale(img)
 
     img_name = os.path.basename(os.path.normpath(image_path))
-    org_label_path = os.path.join('../Data/Pages/Base/labels/all_org', img_name.replace('jpg', 'txt'))
+    org_label_path = os.path.join('../Data/Pages/Base/all_org/labels', img_name.replace('jpg', 'txt'))
     target_words_folder = '../Data/Words/Preprocessed/'
     target_pages_folder = '../Data/Pages/Preprocessed/'
-    split_folder = os.path.normpath(image_path).split(os.path.sep)[-2]
+    split_folder = os.path.normpath(image_path).split(os.path.sep)[-3]
     polygons = read_base_labels(org_label_path)
     polygons = rotate_polygons(polygons, shifts_x1, shifts_y1, shifts_x2)
     yolo_labels, bounding_boxes = make_labels_and_bounding_boxes(polygons, img.shape[1], img.shape[0])
@@ -247,23 +248,33 @@ def preprocessing_sample(image_path):
     img = adaptive_thresholding(img)
     cv.imwrite(image_name + '/thresholding.jpg', img)
     img = invert(img)
-    img_skel = skeletonize(img).astype(np.uint8)
-    img_skel = normalization_grayscale(img_skel)
-    rotation = projection_profile_skew(img_skel, 5)
+    #img_skel = skeletonize(img).astype(np.uint8)
+    #img_skel = normalization_grayscale(img_skel)
+    #rotation = projection_profile_skew(img_skel, 5)
+    #img = thin(img).astype(np.uint8)
+    #img = binary_closing(img, footprint=np.ones((8, 8))).astype(np.uint8)
+    blur = cv.GaussianBlur(img, (0, 0), sigmaX=3, sigmaY=3, borderType=cv.BORDER_DEFAULT)
+    img = rescale_intensity(blur, in_range=(127.5, 255), out_range=(0, 255))
+    img = normalization_grayscale(img)
+    cv.imwrite(image_name + '/erode.jpg', img)
     img = skeletonize(img).astype(np.uint8)
+    #img = (img / 255).astype(bool)
+    #img = EuclideanSkeleton(img, endPixelCondition='loose ends away')
+    #img = np.array(img).astype(np.uint8)
+
     img = normalization_grayscale(img)
     img = invert(img)
     cv.imwrite(image_name + '/skeletonize.jpg', img)
-    img, _, _, _ = rotate(img, rotation)
+    #img, _, _, _ = rotate(img, rotation)
     cv.imwrite(image_name + '/skew.jpg', img)
 
 
 if __name__ == '__main__':
-    drop_splits_target_folders('../Data/Pages/Preprocessed/')
-    drop_splits_target_folders('../Data/Words/Preprocessed/')
+    drop_folder('../Data/Pages/Preprocessed/')
+    drop_folder('../Data/Words/Preprocessed/')
     create_splits_target_folders('../Data/Pages/Preprocessed/')
     create_splits_target_folders('../Data/Words/Preprocessed/')
     copy_base_word_labels('../Data/Words/Preprocessed/')
-    preprocessing_folder('../Data/Pages/Base/images/val')
-    preprocessing_folder('../Data/Pages/Base/images/train')
-    preprocessing_folder('../Data/Pages/Base/images/test')
+    preprocessing_folder('../Data/Pages/Base/val/images')
+    preprocessing_folder('../Data/Pages/Base/train/images')
+    preprocessing_folder('../Data/Pages/Base/test/images')
