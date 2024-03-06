@@ -229,8 +229,12 @@ def preprocessing(image_path):
 def preprocessing_folder(folder_path):
     img_count = len([name for name in os.listdir(folder_path)])
     img_counter = 0
+    split_folder = os.path.normpath(folder_path).split(os.path.sep)[-2]
     for image_path in os.listdir(folder_path):
         img_counter += 1
+        target_path = os.path.join('../Data/Pages/Preprocessed', split_folder, 'images', image_path)
+        if os.path.exists(target_path):
+            continue
         path = os.path.join(folder_path, image_path)
         print(str(img_counter) + '/' + str(img_count) + ' in ' + folder_path)
         print('Preprocessing image: ' + path)
@@ -270,11 +274,12 @@ def preprocessing_sample(image_path):
 
 
 if __name__ == '__main__':
-    drop_folder('../Data/Pages/Preprocessed/')
-    drop_folder('../Data/Words/Preprocessed/')
-    create_splits_target_folders('../Data/Pages/Preprocessed/')
-    create_splits_target_folders('../Data/Words/Preprocessed/')
-    copy_base_word_labels('../Data/Words/Preprocessed/')
+    #drop_folder('../Data/Pages/Preprocessed/')
+    #drop_folder('../Data/Words/Preprocessed/')
+    #create_splits_target_folders('../Data/Pages/Preprocessed/')
+    #create_splits_target_folders('../Data/Words/Preprocessed/')
+    #copy_base_word_labels('../Data/Words/Preprocessed/')
     preprocessing_folder('../Data/Pages/Base/val/images')
     preprocessing_folder('../Data/Pages/Base/train/images')
     preprocessing_folder('../Data/Pages/Base/test/images')
+
